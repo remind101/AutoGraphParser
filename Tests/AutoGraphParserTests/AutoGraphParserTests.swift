@@ -48,47 +48,47 @@ final class AutoGraphParserTests: XCTestCase {
         let name = try Parse {
             Name.parser
         }.parse(input)
-        XCTAssertEqual(name.val, "Some_Name_1234")
+        XCTAssertEqual(name.value, "Some_Name_1234")
     }
     
     func testArgumentParsing() throws {
         var input = "arg:true"
         var argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .bool(true)))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .bool(true)))
         
         input = "arg:true"
         argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .bool(true)))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .bool(true)))
         
         input = "arg :1"
         argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .int(1)))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .int(1)))
         
         input = "arg: 1.0"
         argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .float(1.0)))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .float(1.0)))
         
         input = "arg: \"1.0\""
         argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .string("1.0")))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .string("1.0")))
         
         input = "arg: \" false\""
         argument = try Argument<IsConst>.parser.parse(input)
-        XCTAssertEqual(argument, Argument<IsConst>(name: Name(val: "arg"), value: .string(" false")))
+        XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .string(" false")))
         
         input = "{ bool: \"false\" }"
         let objectValue = try ObjectValue<IsConst>.parser.parse(input)
-        XCTAssertEqual(objectValue, .init(fields: [.init(name: Name(val: "bool"), value: .string("false"))]))
+        XCTAssertEqual(objectValue, .init(fields: [.init(name: Name("bool"), value: .string("false"))]))
         
         
         input = "obj: { bool: \" false\", list :[1, 2, 3], var: $yeet}    "
         let varArgument = try Argument<IsVariable>.parser.parse(input)
         XCTAssertEqual(varArgument, Argument<IsVariable>(
-            name: Name(val: "obj"),
+            name: Name("obj"),
             value: .object(.init(fields: [
-                .init(name: Name(val: "bool"), value: .string(" false")),
-                .init(name: Name(val: "list"), value: .list([.int(1), .int(2), .int(3)])),
-                .init(name: Name(val: "var"), value: .variable(Variable(name: Name(val: "yeet")), IsVariable()))
+                .init(name: Name("bool"), value: .string(" false")),
+                .init(name: Name("list"), value: .list([.int(1), .int(2), .int(3)])),
+                .init(name: Name("var"), value: .variable(Variable(name: Name("yeet")), IsVariable()))
             ]))
         ))
     }

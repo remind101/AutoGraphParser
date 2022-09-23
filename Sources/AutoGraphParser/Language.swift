@@ -7,12 +7,16 @@ import Parsing
 /// Name
 /// We just make use this as a protocol which is applied to `Name` since it reduces to `Name`
 public protocol Alias {
-    var val: String { get }
+    var value: String { get }
 }
 
 /// https://spec.graphql.org/October2021/#Name
 public struct Name: Alias, Hashable {
-    public var val: String
+    public var value: String
+    
+    public init(_ value: String) {
+        self.value = value
+    }
     
     struct NameParser: ParserPrinter {
         let parsePrinter = ParsePrint {
@@ -26,13 +30,13 @@ public struct Name: Alias, Hashable {
         }
         
         public func print(_ output: Name, into input: inout Substring.UTF8View) throws {
-            try self.parsePrinter.print(output.val, into: &input)
+            try self.parsePrinter.print(output.value, into: &input)
         }
         
         public func parse(_ input: inout Substring.UTF8View) throws -> Name {
             // TODO: Somehow turn this into the NameParser itself.
             let parsed = try self.parsePrinter.parse(&input)
-            return Name(val: parsed)
+            return Name(parsed)
         }
     }
     
