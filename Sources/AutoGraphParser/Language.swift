@@ -5,13 +5,13 @@ import Parsing
 
 /// https://spec.graphql.org/October2021/#Alias
 /// Name
-/// We just make use this as a protocol which is applied to `Name` since it reduces to `Name`
-public protocol Alias {
-    var value: String { get }
-}
+///
+/// Typealias to `Name` since it reduces to `Name`, if we want clearer type differentiation
+/// in the future may prefer `protocol Alias` and `Name: Alias`.
+typealias Alias = Name
 
 /// https://spec.graphql.org/October2021/#Name
-public struct Name: Alias, Hashable {
+public struct Name: Hashable {
     public var value: String
     
     public init(_ value: String) {
@@ -117,8 +117,7 @@ struct Field {
             // TODO: May need oneof here between with alias and without?
             Optionally {
                 Whitespace()
-                // Alias == Name.
-                Name.parser
+                Alias.parser
             }
             Whitespace()
             Name.parser
