@@ -888,7 +888,7 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
     
     static var listParser: some Parser<Substring.UTF8View, [Directive]> {
         Parse {
-            // Since separator is whitespace, need to first peak to make sure
+            // Since separator is whitespace, need to first peek to make sure
             // we're starting with a directive sigil (`@`) or we'll return
             // an empty list.
             Peek { Directive<IsConst>.prefixChar }
