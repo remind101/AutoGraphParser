@@ -12,7 +12,7 @@ final class AutoGraphParserTests: XCTestCase {
     
     func testNameParsing() throws {
         let input = "Some_Name_1234"
-        let name = try Name.parser.parse(input)
+        let name = try Name.parserPrinter.parse(input)
         XCTAssertEqual(name.value, "Some_Name_1234")
     }
     
