@@ -1,8 +1,15 @@
 import Parsing
 
-// TODO: Eventually re-order to match spec's documentation order.
 // TODO: Make everything a ParserPrinter.
-// TODO: Make things Equatable.
+
+/// Parameterized grammar productions of `[Const]`.
+/// `https://spec.graphql.org/October2021/#sec-Grammar-Notation.Parameterized-Grammar-Productions`
+public protocol ConstGrammar: Hashable {}
+/// Implies that no tokens in this grammar production have a `Variable`.
+public typealias IsConst = Never
+extension IsConst: ConstGrammar {}
+/// Implies that tokens in this grammar product may have a `Variable`.
+public struct IsVariable: ConstGrammar {}
 
 /// https://spec.graphql.org/October2021/#sec-Document
 /// TODO: Currently only handling Query, not Schema, parsing; not yet implemented:
@@ -18,7 +25,7 @@ import Parsing
 public struct ExecutableDocument: Hashable {
     let executableDefinitions: [ExecutableDefinition]
     
-    static var parser: some Parser<Substring.UTF8View, ExecutableDocument> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Many {
             ExecutableDefinition.parser
         } separator: {
@@ -36,7 +43,7 @@ public enum ExecutableDefinition: Hashable {
     case operationDefinition(OperationDefinition)
     case fragmentDefinition(FragmentDefinition)
     
-    static var parser: some Parser<Substring.UTF8View, ExecutableDefinition> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         OneOf {
             OperationDefinition.parser.map { Self.operationDefinition($0) }
             FragmentDefinition.parser.map { Self.fragmentDefinition($0) }
@@ -71,12 +78,12 @@ public struct OperationDefinition: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, OperationDefinition> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             OperationType.parser
             Optionally {
                 Whitespace()
-                Name.parser
+                Name.parserPrinter
             }
             Optionally {
                 Whitespace()
@@ -90,6 +97,151 @@ public struct OperationDefinition: Hashable {
             SelectionSet.parser
         }
         .map { OperationDefinition(operation: $0.0, name: $0.1, variableDefinitions: $0.2, directives: $0.3, selectionSet: $0.4) }
+    }
+}
+
+/// https://spec.graphql.org/October2021/#SelectionSet
+/// SelectionSet:
+///   { Selection_list }
+public struct SelectionSet: Hashable {
+    public let selections: [Selection]
+    
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
+            "{".utf8
+            Whitespace()
+            // Circular.
+            Lazy {
+                // Compiler internal failure from circular some types.
+                // TODO: Report a bug.
+                AnyParser(Selection.listParser)
+            }
+            Whitespace()
+            "}".utf8
+        }
+        .map { SelectionSet(selections: $0) }
+    }
+}
+
+/// https://spec.graphql.org/October2021/#Selection
+/// Selection:
+///   Field
+///   FragmentSpread
+///   InlineFragment
+public indirect enum Selection: Hashable {
+    public enum Kind: String {
+        case field = "Field"
+        case fragmentSpread = "FragmentSpread"
+        case inlineFragment = "InlineFragment"
+    }
+    
+    case field(Field)
+    case fragmentSpread(FragmentSpread)
+    case inlineFragment(InlineFragment)
+    
+    public var rawValue: String {
+        switch self {
+        case .field(_):
+            return Kind.field.rawValue
+        case .fragmentSpread(_):
+            return Kind.fragmentSpread.rawValue
+        case .inlineFragment(_):
+            return Kind.inlineFragment.rawValue
+        }
+    }
+    
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        OneOf {
+            Field.parser.map { Selection.field($0) }
+            FragmentSpread.parser.map { Selection.fragmentSpread($0) }
+            InlineFragment.parser.map { Selection.inlineFragment($0) }
+        }
+    }
+    
+    static var listParser: some Parser<Substring.UTF8View, [Self]> {
+        Many {
+            Selection.parser
+        } separator: {
+            Whitespace()
+        }
+    }
+}
+
+/// https://spec.graphql.org/October2021/#sec-Language.Fields
+/// Field:
+///   Alias-opt Name Arguments_opt Directives_opt SelectionSet_opt
+public struct Field: Hashable {
+    public let alias: Alias?
+    public let name: Name
+    public let arguments: [Argument<IsVariable>]?
+    public let directives: [Directive<IsVariable>]?
+    public let selectionSet: SelectionSet?
+    
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
+            Optionally {
+                Alias.aliasParser
+                Whitespace()
+            }
+            Name.parserPrinter
+            Optionally {
+                Whitespace()
+                Argument<IsVariable>.listParser
+            }
+            Optionally {
+                Whitespace()
+                Directive<IsVariable>.listParser
+            }
+            Optionally {
+                Whitespace()
+                SelectionSet.parser
+            }
+        }
+        .map {
+            Field(alias: $0.0, name: $0.1, arguments: $0.2, directives: $0.3, selectionSet: $0.4)
+        }
+    }
+}
+
+/// https://spec.graphql.org/October2021/#Argument
+/// Arguments_Const:
+///   ( Argument_?Const_list )
+///
+/// Argument_Const:
+///   Name: Value_?Const
+public struct Argument<ConstParam: ConstGrammar>: Hashable {
+    public let name: Name
+    public let value: Value<ConstParam>
+    
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
+            Whitespace()
+            Name.parserPrinter
+            Whitespace()
+            ":".utf8
+            Whitespace()
+            Value<ConstParam>.parser
+        }
+        .map {
+            Argument(name: $0.0, value: $0.1)
+        }
+    }
+    
+    static var listParser: some Parser<Substring.UTF8View, [Self]> {
+        Parse {
+            "(".utf8
+            Many {
+                Whitespace()
+                Argument<ConstParam>.parser
+                Whitespace()
+            } separator: {
+                // TODO: Notable that `,` is not specified as a delimeter in the grammer
+                // but is in all the examples. This is a mistake in the spec that needs to be fixed.
+                ",".utf8
+            } terminator: {
+                ")".utf8
+            }
+        }
     }
 }
 
@@ -114,8 +266,8 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
         self.value = value
     }
     
-    struct NameParser: ParserPrinter {
-        let parsePrinter = ParsePrint {
+    static var parserPrinter: some ParserPrinter<Substring.UTF8View, Self> {
+        ParsePrint {
             Many(1, into: "") { string, fragment in
                 string.append(contentsOf: fragment)
             } decumulator: { string in
@@ -124,52 +276,36 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
                 Prefix { $0.isNameCharacter }.map(.string)
             }
         }
-        
-        public func print(_ output: Name, into input: inout Substring.UTF8View) throws {
-            try self.parsePrinter.print(output.value, into: &input)
-        }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> Name {
-            // TODO: Somehow turn this into the NameParser itself.
-            let parsed = try self.parsePrinter.parse(&input)
-            return Name(parsed)
-        }
+        .map(.memberwise { Name($0) })
     }
     
-    // TODO: Swift 5.7  https://github.com/apple/swift-evolution/blob/main/proposals/0346-light-weight-same-type-syntax.md
-    // should make it possible to do `some Parser<String.SubSequence, Name>` and we won't need an
-    // additional struct.
-    static var parser: NameParser {
-        NameParser()
-    }
-    
-    static var aliasParser: some Parser<Substring.UTF8View, Name> {
+    static var aliasParser: some Parser<Substring.UTF8View, Self> {
         Parse {
-            NameParser()
+            Name.parserPrinter
             Whitespace()
             ":".utf8
         }
     }
     
-    static var fragmentNameParser: some Parser<Substring.UTF8View, Name> {
+    static var fragmentNameParser: some Parser<Substring.UTF8View, Self> {
         struct NameIsOnError: Error {
             var localizedDescription: String {
                 "FragmentName cannot be \"on\""
             }
         }
-        return Name.parser.flatMap {
+        return Name.parserPrinter.flatMap {
             if $0.value == "on" { Fail<Substring.UTF8View, Name>(throwing: NameIsOnError()) }
             else { Always($0) }
         }
     }
     
-    static var butNotTrueOrFalseOrNullParser: some Parser<Substring.UTF8View, Name> {
+    static var butNotTrueOrFalseOrNullParser: some Parser<Substring.UTF8View, Self> {
         struct NameIsTrueOrFalseOrNullError: Error {
             var localizedDescription: String {
                 "Enum case name cannot be \"true\" or \"false\" or \"null\""
             }
         }
-        return self.parser.flatMap {
+        return self.parserPrinter.flatMap {
             if $0.value == "true" || $0.value == "false" || $0.value == "null" {
                 Fail<Substring.UTF8View, Name>(throwing: NameIsTrueOrFalseOrNullError())
             }
@@ -221,78 +357,6 @@ extension Conversion where Self == AnyConversion<Substring.UTF8View, String> {
     }
 }
 
-public protocol ConstGrammar: Hashable {}
-public typealias IsConst = Never
-extension IsConst: ConstGrammar {}
-public struct IsVariable: ConstGrammar {}
-
-/// https://spec.graphql.org/October2021/#SelectionSet
-/// SelectionSet:
-///   { Selection_list }
-public struct SelectionSet: Hashable {
-    public let selections: [Selection]
-    
-    static var parser: some Parser<Substring.UTF8View, SelectionSet> {
-        Parse {
-            "{".utf8
-            Whitespace()
-            // Circular.
-            Lazy {
-                // Compiler internal failure from circular some types.
-                // TODO: Report a bug.
-                AnyParser(Selection.listParser)
-            }
-            Whitespace()
-            "}".utf8
-        }
-        .map { SelectionSet(selections: $0) }
-    }
-}
-
-/// https://spec.graphql.org/October2021/#Selection
-/// Selection:
-///   Field
-///   FragmentSpread
-///   InlineFragment
-public indirect enum Selection: Hashable {
-    public enum Kind: String {
-        case field = "Field"
-        case fragmentSpread = "FragmentSpread"
-        case inlineFragment = "InlineFragment"
-    }
-    
-    case field(Field)
-    case fragmentSpread(FragmentSpread)
-    case inlineFragment(InlineFragment)
-    
-    public var rawValue: String {
-        switch self {
-        case .field(_):
-            return Kind.field.rawValue
-        case .fragmentSpread(_):
-            return Kind.fragmentSpread.rawValue
-        case .inlineFragment(_):
-            return Kind.inlineFragment.rawValue
-        }
-    }
-    
-    static var parser: some Parser<Substring.UTF8View, Selection> {
-        OneOf {
-            Field.parser.map { Selection.field($0) }
-            FragmentSpread.parser.map { Selection.fragmentSpread($0) }
-            InlineFragment.parser.map { Selection.inlineFragment($0) }
-        }
-    }
-    
-    static var listParser: some Parser<Substring.UTF8View, [Selection]> {
-        Many {
-            Selection.parser
-        } separator: {
-            Whitespace()
-        }
-    }
-}
-
 /// https://spec.graphql.org/October2021/#FragmentSpread
 /// FragmentSpread:
 ///   ...FragmentName Directives-opt
@@ -302,7 +366,7 @@ public struct FragmentSpread: Hashable {
     public let name: Name
     public let directives: [Directive<IsVariable>]?
     
-    static var parser: some Parser<Substring.UTF8View, FragmentSpread> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "...".utf8
             Whitespace()
@@ -327,7 +391,7 @@ public struct FragmentDefinition: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, FragmentDefinition> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "fragment".utf8
             Whitespace()
@@ -352,7 +416,7 @@ public struct FragmentDefinition: Hashable {
 public struct TypeCondition: Hashable {
     public let name: NamedType
     
-    static var parser: some Parser<Substring.UTF8View, TypeCondition> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "on".utf8
             Whitespace()
@@ -370,7 +434,7 @@ public struct InlineFragment: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, InlineFragment> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "...".utf8
             Optionally {
@@ -385,100 +449,6 @@ public struct InlineFragment: Hashable {
             SelectionSet.parser
         }
         .map { InlineFragment(typeCondition: $0.0, directives: $0.1, selectionSet: $0.2) }
-    }
-}
-
-/// https://spec.graphql.org/October2021/#sec-Language.Fields
-/// Field:
-///   Alias-opt Name Arguments_opt Directives_opt SelectionSet_opt
-public struct Field: Hashable {
-    public let alias: Alias?
-    public let name: Name
-    public let arguments: [Argument<IsVariable>]?
-    public let directives: [Directive<IsVariable>]?
-    public let selectionSet: SelectionSet?
-    
-    static var parser: some Parser<Substring.UTF8View, Field> {
-        Parse {
-            Optionally {
-                Alias.aliasParser
-                Whitespace()
-            }
-            Name.parser
-            Optionally {
-                Whitespace()
-                Argument<IsVariable>.listParser
-            }
-            Optionally {
-                Whitespace()
-                Directive<IsVariable>.listParser
-            }
-            Optionally {
-                Whitespace()
-                SelectionSet.parser
-            }
-        }
-        .map {
-            Field(alias: $0.0, name: $0.1, arguments: $0.2, directives: $0.3, selectionSet: $0.4)
-        }
-    }
-}
-
-/// https://spec.graphql.org/October2021/#Argument
-/// Arguments_Const:
-///   ( Argument_?Const_list )
-///
-/// Argument_Const:
-///   Name: Value_?Const
-public struct Argument<ConstParam: ConstGrammar>: Hashable {
-    public let name: Name
-    public let value: Value<ConstParam>
-    
-    struct ArgumentParser: Parser {
-        let parser = Parse {
-            Whitespace()
-            Name.parser
-            Whitespace()
-            ":".utf8
-            Whitespace()
-            Value<ConstParam>.parser
-        }
-        .map {
-            Argument(name: $0.0, value: $0.1)
-        }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> Argument<ConstParam> {
-            try self.parser.parse(&input)
-        }
-    }
-    
-    static var parser: ArgumentParser {
-        ArgumentParser()
-    }
-    
-    struct ArgumentsParser: Parser {
-        let parser = Parse {
-            "(".utf8
-            Many {
-                Whitespace()
-                Argument<ConstParam>.parser
-                Whitespace()
-            } separator: {
-                // TODO: Notable that `,` is not specified as a delimeter in the grammer
-                // but is in all the examples. This is a mistake in the spec that needs to be fixed.
-                ",".utf8
-            } terminator: {
-                ")".utf8
-            }
-        }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> [Argument<ConstParam>] {
-            try self.parser.parse(&input)
-        }
-    }
-    
-    static var listParser: ArgumentsParser {
-        ArgumentsParser()
     }
 }
 
@@ -648,22 +618,14 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
 public struct Variable: Hashable {
     public let name: Name
     
-    struct VariableParser: Parser {
-        let parser = Parse {
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
             "$".utf8
-            Name.parser
+            Name.parserPrinter
         }
         .map {
             Variable(name: $0)
         }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> Variable {
-            try self.parser.parse(&input)
-        }
-    }
-    
-    static var parser: VariableParser {
-        return VariableParser()
     }
 }
 
@@ -674,8 +636,8 @@ public struct Variable: Hashable {
 public struct ObjectValue<ConstParam: ConstGrammar>: Hashable {
     public let fields: [ObjectField<ConstParam>]
     
-    struct ObjectValueParser: Parser {
-        let parser = Parse {
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
             "{".utf8
             Many {
                 Whitespace()
@@ -689,14 +651,6 @@ public struct ObjectValue<ConstParam: ConstGrammar>: Hashable {
         }.map {
             ObjectValue(fields: $0)
         }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> ObjectValue<ConstParam> {
-            try self.parser.parse(&input)
-        }
-    }
-    
-    static var parser: ObjectValueParser {
-        return ObjectValueParser()
     }
 }
 
@@ -706,10 +660,10 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
     public let name: Name
     public let value: Value<ConstParam>
     
-    struct ObjectFieldParser: Parser {
-        let parser = Parse {
+    static var parser: some Parser<Substring.UTF8View, Self> {
+        Parse {
             Whitespace()
-            Name.parser
+            Name.parserPrinter
             Whitespace()
             ":".utf8
             Lazy { Value<ConstParam>.parser }
@@ -717,14 +671,6 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
         .map {
             ObjectField(name: $0.0, value: $0.1)
         }
-        
-        public func parse(_ input: inout Substring.UTF8View) throws -> ObjectField {
-            try parser.parse(&input)
-        }
-    }
-    
-    static var parser: ObjectFieldParser {
-        return ObjectFieldParser()
     }
 }
 
@@ -734,7 +680,7 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
 public struct VariableDefinitions: Hashable {
     public let variableDefinitions: [VariableDefinition]
     
-    static var parser: some Parser<Substring.UTF8View, VariableDefinitions> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "(".utf8
             Many {
@@ -763,7 +709,7 @@ public struct VariableDefinition: Hashable {
     public let defaultValue: Value<IsConst>?
     public let directives: [Directive<IsConst>]?
     
-    static var parser: some Parser<Substring.UTF8View, VariableDefinition> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Variable.parser
             Whitespace()
@@ -808,7 +754,7 @@ public indirect enum `Type`: Hashable {
     case listType(`Type`)
     case nonNullType(`Type`) // Cannot be another NonNullType.
     
-    static var parser: some Parser<Substring.UTF8View, `Type`> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         OneOf {
             Self.nonNullTypeParser
             Self.namedTypeParser
@@ -816,11 +762,11 @@ public indirect enum `Type`: Hashable {
         }
     }
     
-    static var namedTypeParser: some Parser<Substring.UTF8View, `Type`> {
+    static var namedTypeParser: some Parser<Substring.UTF8View, Self> {
         NamedType.parser.map { Self.namedType($0) }
     }
     
-    static var listTypeParser: some Parser<Substring.UTF8View, `Type`> {
+    static var listTypeParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "[".utf8
             Whitespace()
@@ -831,7 +777,7 @@ public indirect enum `Type`: Hashable {
         }.map { Self.listType($0) }
     }
     
-    static var nonNullTypeParser: some Parser<Substring.UTF8View, `Type`> {
+    static var nonNullTypeParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             OneOf {
                 Self.namedTypeParser
@@ -849,9 +795,9 @@ public indirect enum `Type`: Hashable {
 public struct NamedType: Hashable {
     public let name: Name
     
-    static var parser: some Parser<Substring.UTF8View, NamedType> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
-            Name.parser
+            Name.parserPrinter
         }
         .map { NamedType(name: $0) }
     }
@@ -872,10 +818,10 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
         "@".utf8
     }
     
-    static var parser: some Parser<Substring.UTF8View, Directive> {
+    static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             self.prefixChar
-            Name.parser
+            Name.parserPrinter
             Optionally {
                 Whitespace()
                 Argument<ConstParam>.listParser
@@ -886,7 +832,7 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
         }
     }
     
-    static var listParser: some Parser<Substring.UTF8View, [Directive]> {
+    static var listParser: some Parser<Substring.UTF8View, [Self]> {
         Parse {
             // Since separator is whitespace, need to first peek to make sure
             // we're starting with a directive sigil (`@`) or we'll return
