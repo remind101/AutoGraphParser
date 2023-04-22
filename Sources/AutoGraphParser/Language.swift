@@ -495,7 +495,7 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
     
     struct ValueParser: Parser {
         // Ripped from https://github.com/pointfreeco/swift-parsing/blob/main/Sources/swift-parsing-benchmark/JSON.swift .
-        let unicode = ParsePrint(.unicode) {
+        let unicode = ParsePrint(input: Substring.UTF8View.self,.unicode) {
             Prefix(4) { $0.isHexDigit }
         }
 
