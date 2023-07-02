@@ -1,3 +1,4 @@
+[![CircleCI](https://circleci.com/gh/remind101/AutoGraphParser.svg?style=svg)](https://app.circleci.com/pipelines/github/remind101/AutoGraphParser)
 # AutoGraphParser
 (Future) AutoGraph GQL Parser
 
