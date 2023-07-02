@@ -1,6 +1,7 @@
-[![CircleCI](https://circleci.com/gh/remind101/AutoGraphParser.svg?style=svg)](https://app.circleci.com/pipelines/github/remind101/AutoGraphParser)
 # AutoGraphParser
-(Future) AutoGraph GQL Parser
+[![CircleCI](https://circleci.com/gh/remind101/AutoGraphParser.svg?style=shield)](https://app.circleci.com/pipelines/github/remind101/AutoGraphParser)
+
+The Swiftest way to GQL Parsing
 
 Relies upon functional parser combinators https://github.com/pointfreeco/swift-parsing
 
