@@ -3,6 +3,10 @@
 
 Relies upon functional parser combinators https://github.com/pointfreeco/swift-parsing
 
+- [x] GraphQL client Query parsing.
+- [x] Introspection Schema JSON parsing.
+- [ ] Full GraphQL schema parsing (future).
+
 ### Process
 
 ##### Building
