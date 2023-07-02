@@ -3,7 +3,9 @@
 
 The Swiftest way to GQL Parsing
 
-Relies upon functional parser combinators https://github.com/pointfreeco/swift-parsing
+Relies upon functional parser combinators https://github.com/pointfreeco/swift-parsing.
+
+Conforming to 2021 [spec](https://spec.graphql.org/October2021/).
 
 - [x] GraphQL client Query parsing.
 - [x] Introspection Schema JSON parsing.
