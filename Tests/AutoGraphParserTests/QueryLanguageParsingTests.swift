@@ -4,7 +4,7 @@ import Parsing
 
 // TODO: Use Prop Tests.
 
-final class AutoGraphParserTests: XCTestCase {
+final class QueryLanguageParsingTests: XCTestCase {
     func testGraphQL() throws {
         // TODO: Test a full Document once ready.
         // TODO: Remember that whitespace (amongst other characters) is ignored. https://spec.graphql.org/October2021/#Ignored
