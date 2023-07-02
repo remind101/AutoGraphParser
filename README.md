@@ -7,6 +7,10 @@ Relies upon functional parser combinators https://github.com/pointfreeco/swift-p
 - [x] Introspection Schema JSON parsing.
 - [ ] Full GraphQL schema parsing (future).
 
+CI:
+- [x] Linux Ubuntu
+- [ ] Mac 
+
 ### Process
 
 ##### Building
