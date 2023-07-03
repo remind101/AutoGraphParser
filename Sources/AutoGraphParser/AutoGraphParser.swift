@@ -8,7 +8,7 @@ public enum AutoGraphParserError: Error {
 }
 
 extension __Schema {
-    static func loadFrom(jsonSchemaPath: String) throws -> __Schema {
+    public static func loadFrom(jsonSchemaPath: String) throws -> __Schema {
         struct Payload: Codable {
             struct Data: Codable {
                 let __schema: __Schema
