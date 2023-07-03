@@ -7,7 +7,8 @@ let package = Package(
     name: "AutoGraphParser",
     platforms: [
         .iOS(.v13),
-        .macOS(.v10_13),
+        // MacOS version could be lower, but swift-parsing requires 10.15. Could open an issue if this becomes a nuisance.
+        .macOS(.v10_15),
         .tvOS(.v13),
         .watchOS(.v6),
     ],
