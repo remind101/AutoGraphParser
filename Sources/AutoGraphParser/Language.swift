@@ -23,9 +23,13 @@ public struct IsVariable: ConstGrammar {}
 /// ExecutableDocument:
 ///   ExecutableDefinition_list
 public struct ExecutableDocument: Hashable {
-    let executableDefinitions: [ExecutableDefinition]
+    public let executableDefinitions: [ExecutableDefinition]
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(executableDefinitions: [ExecutableDefinition]) {
+        self.executableDefinitions = executableDefinitions
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Many {
             ExecutableDefinition.parser
         } separator: {
@@ -43,7 +47,7 @@ public enum ExecutableDefinition: Hashable {
     case operationDefinition(OperationDefinition)
     case fragmentDefinition(FragmentDefinition)
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         OneOf {
             OperationDefinition.parser.map { Self.operationDefinition($0) }
             FragmentDefinition.parser.map { Self.fragmentDefinition($0) }
@@ -63,7 +67,7 @@ public struct OperationDefinition: Hashable {
         case mutation
         case subscription
         
-        static var parser: some Parser<Substring.UTF8View, OperationType> {
+        public static var parser: some Parser<Substring.UTF8View, OperationType> {
             OneOf {
                 "query".utf8.map { Self.query }
                 "mutation".utf8.map { Self.mutation }
@@ -78,7 +82,15 @@ public struct OperationDefinition: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(operation: OperationDefinition.OperationType, name: Name? = nil, variableDefinitions: VariableDefinitions? = nil, directives: [Directive<IsVariable>]? = nil, selectionSet: SelectionSet) {
+        self.operation = operation
+        self.name = name
+        self.variableDefinitions = variableDefinitions
+        self.directives = directives
+        self.selectionSet = selectionSet
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             OperationType.parser
             Optionally {
@@ -106,7 +118,11 @@ public struct OperationDefinition: Hashable {
 public struct SelectionSet: Hashable {
     public let selections: [Selection]
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(selections: [Selection]) {
+        self.selections = selections
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "{".utf8
             Whitespace()
@@ -150,7 +166,7 @@ public indirect enum Selection: Hashable {
         }
     }
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         OneOf {
             Field.parser.map { Selection.field($0) }
             FragmentSpread.parser.map { Selection.fragmentSpread($0) }
@@ -158,7 +174,7 @@ public indirect enum Selection: Hashable {
         }
     }
     
-    static var listParser: some Parser<Substring.UTF8View, [Self]> {
+    public static var listParser: some Parser<Substring.UTF8View, [Self]> {
         Many {
             Selection.parser
         } separator: {
@@ -177,7 +193,15 @@ public struct Field: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet?
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(alias: Alias? = nil, name: Name, arguments: [Argument<IsVariable>]? = nil, directives: [Directive<IsVariable>]? = nil, selectionSet: SelectionSet? = nil) {
+        self.alias = alias
+        self.name = name
+        self.arguments = arguments
+        self.directives = directives
+        self.selectionSet = selectionSet
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Optionally {
                 Alias.aliasParser
@@ -213,7 +237,12 @@ public struct Argument<ConstParam: ConstGrammar>: Hashable {
     public let name: Name
     public let value: Value<ConstParam>
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: Name, value: Value<ConstParam>) {
+        self.name = name
+        self.value = value
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Whitespace()
             Name.parserPrinter
@@ -227,7 +256,7 @@ public struct Argument<ConstParam: ConstGrammar>: Hashable {
         }
     }
     
-    static var listParser: some Parser<Substring.UTF8View, [Self]> {
+    public static var listParser: some Parser<Substring.UTF8View, [Self]> {
         Parse {
             "(".utf8
             Many {
@@ -266,7 +295,7 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
         self.value = value
     }
     
-    static var parserPrinter: some ParserPrinter<Substring.UTF8View, Self> {
+    public static var parserPrinter: some ParserPrinter<Substring.UTF8View, Self> {
         ParsePrint {
             Many(1, into: "") { string, fragment in
                 string.append(contentsOf: fragment)
@@ -279,7 +308,7 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
         .map(.memberwise { Name($0) })
     }
     
-    static var aliasParser: some Parser<Substring.UTF8View, Self> {
+    public static var aliasParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Name.parserPrinter
             Whitespace()
@@ -287,24 +316,24 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
         }
     }
     
-    static var fragmentNameParser: some Parser<Substring.UTF8View, Self> {
-        struct NameIsOnError: Error {
-            var localizedDescription: String {
-                "FragmentName cannot be \"on\""
-            }
+    public struct NameIsOnError: Error {
+        public var localizedDescription: String {
+            "FragmentName cannot be \"on\""
         }
+    }
+    public static var fragmentNameParser: some Parser<Substring.UTF8View, Self> {
         return Name.parserPrinter.flatMap {
             if $0.value == "on" { Fail<Substring.UTF8View, Name>(throwing: NameIsOnError()) }
             else { Always($0) }
         }
     }
     
-    static var butNotTrueOrFalseOrNullParser: some Parser<Substring.UTF8View, Self> {
-        struct NameIsTrueOrFalseOrNullError: Error {
-            var localizedDescription: String {
-                "Enum case name cannot be \"true\" or \"false\" or \"null\""
-            }
+    public struct NameIsTrueOrFalseOrNullError: Error {
+        public var localizedDescription: String {
+            "Enum case name cannot be \"true\" or \"false\" or \"null\""
         }
+    }
+    public static var butNotTrueOrFalseOrNullParser: some Parser<Substring.UTF8View, Self> {
         return self.parserPrinter.flatMap {
             if $0.value == "true" || $0.value == "false" || $0.value == "null" {
                 Fail<Substring.UTF8View, Name>(throwing: NameIsTrueOrFalseOrNullError())
@@ -366,7 +395,12 @@ public struct FragmentSpread: Hashable {
     public let name: Name
     public let directives: [Directive<IsVariable>]?
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: Name, directives: [Directive<IsVariable>]? = nil) {
+        self.name = name
+        self.directives = directives
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "...".utf8
             Whitespace()
@@ -391,7 +425,14 @@ public struct FragmentDefinition: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: Name, typeCondition: TypeCondition, directives: [Directive<IsVariable>]? = nil, selectionSet: SelectionSet) {
+        self.name = name
+        self.typeCondition = typeCondition
+        self.directives = directives
+        self.selectionSet = selectionSet
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "fragment".utf8
             Whitespace()
@@ -416,7 +457,11 @@ public struct FragmentDefinition: Hashable {
 public struct TypeCondition: Hashable {
     public let name: NamedType
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: NamedType) {
+        self.name = name
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "on".utf8
             Whitespace()
@@ -434,7 +479,13 @@ public struct InlineFragment: Hashable {
     public let directives: [Directive<IsVariable>]?
     public let selectionSet: SelectionSet
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(typeCondition: TypeCondition? = nil, directives: [Directive<IsVariable>]? = nil, selectionSet: SelectionSet) {
+        self.typeCondition = typeCondition
+        self.directives = directives
+        self.selectionSet = selectionSet
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "...".utf8
             Optionally {
@@ -493,7 +544,7 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
     case list([Value<ConstParam>])
     case object(ObjectValue<ConstParam>)
     
-    struct ValueParser: Parser {
+    public struct ValueParser: Parser {
         // Ripped from https://github.com/pointfreeco/swift-parsing/blob/main/Sources/swift-parsing-benchmark/JSON.swift .
         let unicode = ParsePrint(input: Substring.UTF8View.self,.unicode) {
             Prefix(4) { $0.isHexDigit }
@@ -584,7 +635,7 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
         }
     }
     
-    static var parser: ValueParser {
+    public static var parser: ValueParser {
         return ValueParser()
     }
     
@@ -618,7 +669,11 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
 public struct Variable: Hashable {
     public let name: Name
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    internal init(name: Name) {
+        self.name = name
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "$".utf8
             Name.parserPrinter
@@ -636,7 +691,11 @@ public struct Variable: Hashable {
 public struct ObjectValue<ConstParam: ConstGrammar>: Hashable {
     public let fields: [ObjectField<ConstParam>]
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(fields: [ObjectField<ConstParam>]) {
+        self.fields = fields
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "{".utf8
             Many {
@@ -660,7 +719,12 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
     public let name: Name
     public let value: Value<ConstParam>
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: Name, value: Value<ConstParam>) {
+        self.name = name
+        self.value = value
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Whitespace()
             Name.parserPrinter
@@ -680,7 +744,11 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
 public struct VariableDefinitions: Hashable {
     public let variableDefinitions: [VariableDefinition]
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(variableDefinitions: [VariableDefinition]) {
+        self.variableDefinitions = variableDefinitions
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "(".utf8
             Many {
@@ -709,7 +777,14 @@ public struct VariableDefinition: Hashable {
     public let defaultValue: Value<IsConst>?
     public let directives: [Directive<IsConst>]?
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(variable: Variable, type: Type, defaultValue: Value<IsConst>? = nil, directives: [Directive<IsConst>]? = nil) {
+        self.variable = variable
+        self.type = type
+        self.defaultValue = defaultValue
+        self.directives = directives
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Variable.parser
             Whitespace()
@@ -754,7 +829,7 @@ public indirect enum `Type`: Hashable {
     case listType(`Type`)
     case nonNullType(`Type`) // Cannot be another NonNullType.
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         OneOf {
             Self.nonNullTypeParser
             Self.namedTypeParser
@@ -762,11 +837,11 @@ public indirect enum `Type`: Hashable {
         }
     }
     
-    static var namedTypeParser: some Parser<Substring.UTF8View, Self> {
+    public static var namedTypeParser: some Parser<Substring.UTF8View, Self> {
         NamedType.parser.map { Self.namedType($0) }
     }
     
-    static var listTypeParser: some Parser<Substring.UTF8View, Self> {
+    public static var listTypeParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "[".utf8
             Whitespace()
@@ -777,7 +852,7 @@ public indirect enum `Type`: Hashable {
         }.map { Self.listType($0) }
     }
     
-    static var nonNullTypeParser: some Parser<Substring.UTF8View, Self> {
+    public static var nonNullTypeParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             OneOf {
                 Self.namedTypeParser
@@ -795,7 +870,11 @@ public indirect enum `Type`: Hashable {
 public struct NamedType: Hashable {
     public let name: Name
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public init(name: Name) {
+        self.name = name
+    }
+    
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Name.parserPrinter
         }
@@ -814,11 +893,16 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
     public let name: Name
     public let arguments: [Argument<ConstParam>]?
     
-    static var prefixChar: String.UTF8View {
+    public init(name: Name, arguments: [Argument<ConstParam>]? = nil) {
+        self.name = name
+        self.arguments = arguments
+    }
+    
+    public static var prefixChar: String.UTF8View {
         "@".utf8
     }
     
-    static var parser: some Parser<Substring.UTF8View, Self> {
+    public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             self.prefixChar
             Name.parserPrinter
@@ -832,7 +916,7 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
         }
     }
     
-    static var listParser: some Parser<Substring.UTF8View, [Self]> {
+    public static var listParser: some Parser<Substring.UTF8View, [Self]> {
         Parse {
             // Since separator is whitespace, need to first peek to make sure
             // we're starting with a directive sigil (`@`) or we'll return

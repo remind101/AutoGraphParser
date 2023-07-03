@@ -38,6 +38,10 @@ public struct __Schema: Codable {
     /// the `kind` fields for those types, so we use this type instead.
     public struct RootType: Codable {
         public let name: String
+        
+        public init(name: String) {
+            self.name = name
+        }
     }
     public let description: String?
     public let types: [__Type]
@@ -45,6 +49,15 @@ public struct __Schema: Codable {
     public let mutationType: RootType?
     public let subscriptionType: RootType?
     public let directives: [__Directive]
+    
+    public init(description: String? = nil, types: [__Type], queryType: __Schema.RootType, mutationType: __Schema.RootType? = nil, subscriptionType: __Schema.RootType? = nil, directives: [__Directive]) {
+        self.description = description
+        self.types = types
+        self.queryType = queryType
+        self.mutationType = mutationType
+        self.subscriptionType = subscriptionType
+        self.directives = directives
+    }
 }
 
 /**
@@ -86,7 +99,7 @@ public indirect enum OfType: Hashable, Codable {
         public let name: String?           // Name of the type, nil for NON_NULL and LIST.
         public let description: String?
         
-        init(kind: __TypeKind, name: String? = nil, description: String? = nil) {
+        public init(kind: __TypeKind, name: String? = nil, description: String? = nil) {
             self.kind = kind; self.name = name; self.description = description
         }
     }
@@ -194,6 +207,15 @@ public struct __Field: Hashable, Codable {
     public let type: OfType
     public let isDeprecated: Bool
     public let deprecationReason: String?
+    
+    public init(name: String, description: String? = nil, args: [__InputValue], type: OfType, isDeprecated: Bool, deprecationReason: String? = nil) {
+        self.name = name
+        self.description = description
+        self.args = args
+        self.type = type
+        self.isDeprecated = isDeprecated
+        self.deprecationReason = deprecationReason
+    }
 }
 
 /// `https://spec.graphql.org/October2021/#sec-The-__InputValue-Type`
@@ -217,6 +239,13 @@ public struct __InputValue: Hashable, Codable {
     ///
     /// It is not strictly JSON.
     public let defaultValue: String?
+    
+    public init(name: String, description: String? = nil, type: OfType, defaultValue: String? = nil) {
+        self.name = name
+        self.description = description
+        self.type = type
+        self.defaultValue = defaultValue
+    }
 }
 
 /// `https://spec.graphql.org/October2021/#sec-The-__EnumValue-Type`
@@ -230,6 +259,13 @@ public struct __EnumValue: Hashable, Codable {
     public let description: String?
     public let isDeprecated: Bool
     public let deprecationReason: String?
+    
+    public init(name: String, description: String? = nil, isDeprecated: Bool, deprecationReason: String? = nil) {
+        self.name = name
+        self.description = description
+        self.isDeprecated = isDeprecated
+        self.deprecationReason = deprecationReason
+    }
 }
 
 public enum __DirectiveLocation: String, Hashable, Codable {
@@ -266,10 +302,17 @@ public struct __Directive: Hashable, Codable {
     public let description: String?
     public let locations: [__DirectiveLocation]
     public let args: [__InputValue]
-    // TODO: Include a test with isRepeatable.
     /// The spec states that this field must exist, but in practice it may
     /// not.
     public let isRepeatable: Bool?
+    
+    public init(name: String, description: String? = nil, locations: [__DirectiveLocation], args: [__InputValue], isRepeatable: Bool? = nil) {
+        self.name = name
+        self.description = description
+        self.locations = locations
+        self.args = args
+        self.isRepeatable = isRepeatable
+    }
 }
 
 // MARK: - Types which refine `__Type`.
@@ -339,7 +382,7 @@ public struct ScalarType: __TypeConstructable {
     public let description: String?
     public let specifiedByURL: String?
     
-    public init(name: NameType, description: String?, specifiedByURL: String?) {
+    public init(name: NameType, description: String? = nil, specifiedByURL: String? = nil) {
         self.name = name; self.description = description; self.specifiedByURL = specifiedByURL
     }
     
@@ -376,7 +419,7 @@ public struct ObjectType: __TypeConstructable {
     public let fields: [__Field]
     public let interfaces: [OfType]
     
-    public init(name: String, description: String?, fields: [__Field], interfaces: [OfType]) {
+    public init(name: String, description: String? = nil, fields: [__Field], interfaces: [OfType]) {
         self.name = name; self.description = description; self.fields = fields; self.interfaces = interfaces
     }
     
@@ -402,7 +445,7 @@ public struct UnionType: __TypeConstructable {
     public let description: String?
     public let possibleTypes: [OfType] // Must be an ObjectType.
     
-    public init(name: String, description: String?, possibleTypes: [OfType]) {
+    public init(name: String, description: String? = nil, possibleTypes: [OfType]) {
         self.name = name; self.description = description; self.possibleTypes = possibleTypes
     }
     
@@ -433,7 +476,7 @@ public struct InterfaceType: __TypeConstructable {
     public let fields: [__Field]
     public let possibleTypes: [OfType] // Must be an ObjectType.
     
-    public init(name: String, description: String?, interfaces: [OfType], fields: [__Field], possibleTypes: [OfType]) {
+    public init(name: String, description: String? = nil, interfaces: [OfType], fields: [__Field], possibleTypes: [OfType]) {
         self.name = name; self.description = description; self.interfaces = interfaces; self.fields = fields; self.possibleTypes = possibleTypes
     }
     
@@ -460,7 +503,7 @@ public struct EnumType: __TypeConstructable {
     public let description: String?
     public let enumValues: [__EnumValue]
     
-    public init(name: String, description: String?, enumValues: [__EnumValue]) {
+    public init(name: String, description: String? = nil, enumValues: [__EnumValue]) {
         self.name = name; self.description = description; self.enumValues = enumValues
     }
     
@@ -486,7 +529,7 @@ public struct InputObjectType: __TypeConstructable {
     public let description: String?
     public let inputFields: [__InputValue]
     
-    public init(name: String, description: String?, inputFields: [__InputValue]) {
+    public init(name: String, description: String? = nil, inputFields: [__InputValue]) {
         self.name = name; self.description = description; self.inputFields = inputFields
     }
     
