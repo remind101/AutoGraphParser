@@ -705,10 +705,32 @@ final class QueryLanguageParsingTests: XCTestCase {
     func testExecutableDocument() throws {
         /// ExecutableDocument:
         ///   ExecutableDefinition_list
-        let input = """
+        var input = """
         fragment CoolFragment_1234 on Some_Type_1234 { field } mutation Some_Op_1234 { field } query { field }
         """
-        let executableDocument = try ExecutableDocument.parser.parse(input)
+        var executableDocument = try ExecutableDocument.parser.parse(input)
+        XCTAssertEqual(
+            executableDocument,
+            ExecutableDocument(executableDefinitions: [
+                .fragmentDefinition(
+                    FragmentDefinition(name: "CoolFragment_1234", typeCondition: TypeCondition(name: NamedType(name: "Some_Type_1234")), directives: nil, selectionSet: SelectionSet(selections: [.field(Field(alias: nil, name: "field", arguments: nil, directives: nil, selectionSet: nil))]))
+                ),
+                .operationDefinition(
+                    OperationDefinition(operation: .mutation, name: "Some_Op_1234", variableDefinitions: nil, directives: nil, selectionSet: SelectionSet(selections: [.field(Field(alias: nil, name: "field", arguments: nil, directives: nil, selectionSet: nil))]))
+                ),
+                .operationDefinition(
+                    OperationDefinition(operation: .query, name: nil, variableDefinitions: nil, directives: nil, selectionSet: SelectionSet(selections: [.field(Field(alias: nil, name: "field", arguments: nil, directives: nil, selectionSet: nil))]))
+                )
+            ])
+        )
+        
+        // Inlude some newlines.
+        input = """
+        \nfragment CoolFragment_1234 on Some_Type_1234 { field }
+        mutation Some_Op_1234 { field }
+        query { field }\n
+        """
+        executableDocument = try ExecutableDocument.parser.parse(input)
         XCTAssertEqual(
             executableDocument,
             ExecutableDocument(executableDefinitions: [

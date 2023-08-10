@@ -30,9 +30,14 @@ public struct ExecutableDocument: Hashable {
     }
     
     public static var parser: some Parser<Substring.UTF8View, Self> {
-        Many {
-            ExecutableDefinition.parser
-        } separator: {
+        // A document may have leading and trailing whitespace.
+        Parse {
+            Whitespace()
+            Many {
+                ExecutableDefinition.parser
+            } separator: {
+                Whitespace()
+            }
             Whitespace()
         }
         .map { ExecutableDocument(executableDefinitions: $0) }

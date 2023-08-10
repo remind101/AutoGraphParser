@@ -465,7 +465,7 @@ public struct UnionType: __TypeConstructable {
 /// - `description` may return a `String` or `null`.
 /// - `fields` must return the set of fields required by this interface.
 ///   - Accepts the argument `includeDeprecated` which defaults to `false`. If `true`, deprecated fields are also returned.
-/// - `interfaces` must return the set of interfaces that an object implements (if none, interfaces must return the empty set).
+/// - `interfaces` must return the set of interfaces that an interface implements (if none, interfaces must return the empty set).
 /// - `possibleTypes` returns the list of types that implement this interface. They must be object types.
 /// - `All other fields must return `null`.
 public struct InterfaceType: __TypeConstructable {
