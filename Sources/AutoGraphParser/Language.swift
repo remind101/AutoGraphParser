@@ -1,4 +1,5 @@
 import Parsing
+import Foundation
 
 // TODO: Make everything a ParserPrinter.
 
@@ -30,15 +31,15 @@ public struct ExecutableDocument: Hashable {
     }
     
     public static var parser: some Parser<Substring.UTF8View, Self> {
-        // A document may have leading and trailing whitespace.
+        // A document may have leading and trailing whitespace/ignored tokens.
         Parse {
-            Whitespace()
+            IgnoredTokens()
             Many {
                 ExecutableDefinition.parser
             } separator: {
-                Whitespace()
+                IgnoredTokens()
             }
-            Whitespace()
+            IgnoredTokens()
         }
         .map { ExecutableDocument(executableDefinitions: $0) }
     }
@@ -99,18 +100,18 @@ public struct OperationDefinition: Hashable {
         Parse {
             OperationType.parser
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Name.parserPrinter
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 VariableDefinitions.parser
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsVariable>.listParser
             }
-            Whitespace()
+            IgnoredTokens()
             SelectionSet.parser
         }
         .map { OperationDefinition(operation: $0.0, name: $0.1, variableDefinitions: $0.2, directives: $0.3, selectionSet: $0.4) }
@@ -130,14 +131,14 @@ public struct SelectionSet: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "{".utf8
-            Whitespace()
+            IgnoredTokens()
             // Circular.
             Lazy {
                 // Compiler internal failure from circular some types.
                 // TODO: Report a bug.
                 AnyParser(Selection.listParser)
             }
-            Whitespace()
+            IgnoredTokens()
             "}".utf8
         }
         .map { SelectionSet(selections: $0) }
@@ -183,7 +184,7 @@ public indirect enum Selection: Hashable {
         Many {
             Selection.parser
         } separator: {
-            Whitespace()
+            IgnoredTokens()
         }
     }
 }
@@ -210,19 +211,19 @@ public struct Field: Hashable {
         Parse {
             Optionally {
                 Alias.aliasParser
-                Whitespace()
+                IgnoredTokens()
             }
             Name.parserPrinter
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Argument<IsVariable>.listParser
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsVariable>.listParser
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 SelectionSet.parser
             }
         }
@@ -249,11 +250,11 @@ public struct Argument<ConstParam: ConstGrammar>: Hashable {
     
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
-            Whitespace()
+            IgnoredTokens()
             Name.parserPrinter
-            Whitespace()
+            IgnoredTokens()
             ":".utf8
-            Whitespace()
+            IgnoredTokens()
             Value<ConstParam>.parser
         }
         .map {
@@ -264,15 +265,13 @@ public struct Argument<ConstParam: ConstGrammar>: Hashable {
     public static var listParser: some Parser<Substring.UTF8View, [Self]> {
         Parse {
             "(".utf8
-            Many {
-                Whitespace()
+            IgnoredTokens()
+            Many(1...) {
                 Argument<ConstParam>.parser
-                Whitespace()
             } separator: {
-                // TODO: Notable that `,` is not specified as a delimeter in the grammer
-                // but is in all the examples. This is a mistake in the spec that needs to be fixed.
-                ",".utf8
+                IgnoredTokens()
             } terminator: {
+                Optionally { IgnoredTokens() }
                 ")".utf8
             }
         }
@@ -316,7 +315,7 @@ public struct Name: Hashable, ExpressibleByStringLiteral {
     public static var aliasParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Name.parserPrinter
-            Whitespace()
+            IgnoredTokens()
             ":".utf8
         }
     }
@@ -408,10 +407,10 @@ public struct FragmentSpread: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "...".utf8
-            Whitespace()
+            IgnoredTokens()
             Name.fragmentNameParser
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsVariable>.listParser
             }
         }
@@ -440,15 +439,15 @@ public struct FragmentDefinition: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "fragment".utf8
-            Whitespace()
+            IgnoredTokens()
             Name.fragmentNameParser
-            Whitespace()
+            IgnoredTokens()
             TypeCondition.parser
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsVariable>.listParser
             }
-            Whitespace()
+            IgnoredTokens()
             SelectionSet.parser
         }
         .map { FragmentDefinition(name: $0.0, typeCondition: $0.1, directives: $0.2, selectionSet: $0.3) }
@@ -469,7 +468,7 @@ public struct TypeCondition: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "on".utf8
-            Whitespace()
+            IgnoredTokens()
             NamedType.parser
         }
         .map { TypeCondition(name: $0) }
@@ -494,14 +493,14 @@ public struct InlineFragment: Hashable {
         Parse {
             "...".utf8
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 TypeCondition.parser
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsVariable>.listParser
             }
-            Whitespace()
+            IgnoredTokens()
             SelectionSet.parser
         }
         .map { InlineFragment(typeCondition: $0.0, directives: $0.1, selectionSet: $0.2) }
@@ -543,15 +542,15 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
     ///   Name but not `true` or `false` or `null`
     case `enum`(Name)
     /// https://spec.graphql.org/October2021/#sec-List-Value
-    ///  ListValue_Const:
-    ///    []
-    ///    [ Value_?Const_list ]
+    /// ListValue_Const:
+    ///   []
+    ///   [ Value_?Const_list ]
     case list([Value<ConstParam>])
     case object(ObjectValue<ConstParam>)
     
     public struct ValueParser: Parser {
         // Ripped from https://github.com/pointfreeco/swift-parsing/blob/main/Sources/swift-parsing-benchmark/JSON.swift .
-        let unicode = ParsePrint(input: Substring.UTF8View.self,.unicode) {
+        let unicode = ParsePrint(input: Substring.UTF8View.self, .unicode) {
             Prefix(4) { $0.isHexDigit }
         }
 
@@ -592,14 +591,14 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
             
             let list = Parse {
                 "[".utf8
+                IgnoredTokens()
                 Many {
                     // Cycle.
-                    Whitespace()
                     Lazy { self.value }
-                    Whitespace()
                 } separator: {
-                    ",".utf8
+                    IgnoredTokens()
                 } terminator: {
+                    Optionally { IgnoredTokens() }
                     "]".utf8
                 }
             }
@@ -619,7 +618,6 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
             }
             
             return Parse {
-                Whitespace()
                 if ConstParam.self is IsVariable.Type {
                     OneOf {
                         variableCase
@@ -630,9 +628,8 @@ public indirect enum Value<ConstParam: ConstGrammar>: Hashable {
                     // Assert optional due to bug above.
                     constCases
                 }
-                Whitespace()
-              }
-              .eraseToAnyParser()
+            }
+            .eraseToAnyParser()
         }
         
         public func parse(_ input: inout Substring.UTF8View) throws -> Value<ConstParam> {
@@ -703,13 +700,13 @@ public struct ObjectValue<ConstParam: ConstGrammar>: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "{".utf8
+            IgnoredTokens()
             Many {
-                Whitespace()
                 ObjectField<ConstParam>.parser
-                Whitespace()
             } separator: {
-                ",".utf8
+                IgnoredTokens()
             } terminator: {
+                Optionally { IgnoredTokens() }
                 "}".utf8
             }
         }.map {
@@ -731,10 +728,11 @@ public struct ObjectField<ConstParam: ConstGrammar>: Hashable {
     
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
-            Whitespace()
+            IgnoredTokens()
             Name.parserPrinter
-            Whitespace()
+            IgnoredTokens()
             ":".utf8
+            IgnoredTokens()
             Lazy { Value<ConstParam>.parser }
         }
         .map {
@@ -756,15 +754,13 @@ public struct VariableDefinitions: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "(".utf8
+            IgnoredTokens()
             Many {
-                Whitespace()
                 VariableDefinition.parser
-                Whitespace()
             } separator: {
-                // TODO: Notable that `,` is not specified as a delimeter in the grammer
-                // but is in all the examples. This is a mistake in the spec that needs to be fixed.
-                ",".utf8
+                IgnoredTokens()
             }
+            IgnoredTokens()
             ")".utf8
         }
         .map { VariableDefinitions(variableDefinitions: $0) }
@@ -792,18 +788,18 @@ public struct VariableDefinition: Hashable {
     public static var parser: some Parser<Substring.UTF8View, Self> {
         Parse {
             Variable.parser
-            Whitespace()
+            IgnoredTokens()
             ":".utf8
-            Whitespace()
+            IgnoredTokens()
             `Type`.parser
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 "=".utf8
-                Whitespace()
+                IgnoredTokens()
                 Value<IsConst>.parser
             }
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Directive<IsConst>.listParser
             }
         }
@@ -849,10 +845,10 @@ public indirect enum `Type`: Hashable {
     public static var listTypeParser: some Parser<Substring.UTF8View, Self> {
         Parse {
             "[".utf8
-            Whitespace()
+            IgnoredTokens()
             // Circular.
             Lazy { AnyParser(Self.parser) }
-            Whitespace()
+            IgnoredTokens()
             "]".utf8
         }.map { Self.listType($0) }
     }
@@ -863,7 +859,7 @@ public indirect enum `Type`: Hashable {
                 Self.namedTypeParser
                 Self.listTypeParser
             }
-            Whitespace()
+            IgnoredTokens()
             "!".utf8
         }.map { Self.nonNullType($0) }
     }
@@ -912,7 +908,7 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
             self.prefixChar
             Name.parserPrinter
             Optionally {
-                Whitespace()
+                IgnoredTokens()
                 Argument<ConstParam>.listParser
             }
         }
@@ -930,7 +926,7 @@ public struct Directive<ConstParam: ConstGrammar>: Hashable {
             Many {
                 Directive<ConstParam>.parser
             } separator: {
-                Whitespace()
+                IgnoredTokens()
             }
         }
     }
