@@ -7,7 +7,6 @@ import Parsing
 final class QueryLanguageParsingTests: XCTestCase {
     func testGraphQL() throws {
         // TODO: Test a full Document once ready.
-        // TODO: Remember that whitespace (amongst other characters) is ignored. https://spec.graphql.org/October2021/#Ignored
     }
     
     func testNameParsing() throws {
@@ -20,34 +19,49 @@ final class QueryLanguageParsingTests: XCTestCase {
         var input = "arg:true"
         var argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .bool(true)))
-        
+
         input = "arg:true"
         argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .bool(true)))
-        
+
         input = "arg :1"
         argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .int(1)))
-        
+
         input = "arg: 1.0"
         argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .float(1.0)))
-        
+
         input = "arg: \"1.0\""
         argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .string("1.0")))
-        
+
         input = "arg: \" false\""
         argument = try Argument<IsConst>.parser.parse(input)
         XCTAssertEqual(argument, Argument<IsConst>(name: Name("arg"), value: .string(" false")))
-        
+
         input = "{ bool: \"false\" }"
         let objectValue = try ObjectValue<IsConst>.parser.parse(input)
         XCTAssertEqual(objectValue, .init(fields: [.init(name: Name("bool"), value: .string("false"))]))
+
+        input = "var: $yeet"
+        var varArgument = try Argument<IsVariable>.parser.parse(input)
+        XCTAssertEqual(varArgument, Argument<IsVariable>(
+            name: Name("var"),
+            value: .variable(Variable(name: Name("yeet")), IsVariable()))
+        )
         
+        input = "obj: { var: $yeet}"
+        varArgument = try Argument<IsVariable>.parser.parse(input)
+        XCTAssertEqual(varArgument, Argument<IsVariable>(
+            name: Name("obj"),
+            value: .object(.init(fields: [
+                .init(name: Name("var"), value: .variable(Variable(name: Name("yeet")), IsVariable()))
+            ]))
+        ))
         
-        input = "obj: { bool: \" false\", list :[1, 2, 3], var: $yeet}    "
-        let varArgument = try Argument<IsVariable>.parser.parse(input)
+        input = "obj: { bool: \" false\", list :[1, 2, 3], var: $yeet}"
+        varArgument = try Argument<IsVariable>.parser.parse(input)
         XCTAssertEqual(varArgument, Argument<IsVariable>(
             name: Name("obj"),
             value: .object(.init(fields: [
@@ -531,9 +545,10 @@ final class QueryLanguageParsingTests: XCTestCase {
         var input = """
         query {
             alias: field(a: $a)
-            ...on Some_Name_1234 { field }
-            ...Some_Name_1234  @dir1 @dir2(aaa: true, b_123: [1, 1.0])
+            ...on Some_Name_1234 { field } # comment
+            ...Some_Name_1234  @dir1 @dir2( aaa: true, b_123: [ 1, 1.0 ] )
             obj @dir1 {
+                #junk
                 a b c @dir1 { d }
             }
         }
@@ -726,7 +741,8 @@ final class QueryLanguageParsingTests: XCTestCase {
         
         // Inlude some newlines.
         input = """
-        \nfragment CoolFragment_1234 on Some_Type_1234 { field }
+        \nfragment CoolFragment_1234 on Some_Type_1234 { field } #Comment
+        
         mutation Some_Op_1234 { field }
         query { field }\n
         """
@@ -745,5 +761,38 @@ final class QueryLanguageParsingTests: XCTestCase {
                 )
             ])
         )
+    }
+    
+    func testIgnoredTokens() throws {
+        var input = ",,,"
+        try IgnoredTokens().parse(input)
+        XCTAssertEqual(input, ",,,")
+        
+        input = """
+        
+           ,,,, # this is junk
+        
+        """
+        let inputCopy = input
+        try IgnoredTokens().parse(input)
+        XCTAssertEqual(input, inputCopy)
+        
+        input = """
+        c,,,a #junk
+        1
+        t
+        """
+        let parser = Parse {
+            "c".utf8
+            IgnoredTokens()
+            "a".utf8
+            IgnoredTokens()
+            Int.parser()
+            IgnoredTokens()
+            "t".utf8
+            IgnoredTokens()
+        }
+        let output = try parser.parse(input)
+        XCTAssertEqual(output, 1)
     }
 }
