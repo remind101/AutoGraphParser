@@ -351,7 +351,18 @@ public struct ScalarType: __TypeConstructable {
         case id
         case custom(String)
         
-        public init?(rawValue: String) {
+        public init(builtIn: Self.BuiltIn) {
+            switch builtIn {
+            case .int:      self = .int
+            case .float:    self = .float
+            case .string:   self = .string
+            case .bool:     self = .bool
+            case .id:       self = .id
+            }
+        }
+        
+        /// Defaults to `custom`.
+        public init(rawValue: String) {
             guard let builtIn = BuiltIn(rawValue: rawValue) else {
                 self = .custom(rawValue)
                 return
@@ -391,13 +402,13 @@ public struct ScalarType: __TypeConstructable {
             throw IntrospectionError.typeConstructionError(kind: .scalar)
         }
         
-        guard let name = type.name, let typeName = NameType(rawValue: name) else {
+        guard let name = type.name else {
             assert(false, "Should be impossible to reach here.")
             let name = type.name ?? "nil"
             throw IntrospectionError.general(message: "`ScalarType.name` can only be constructed with `NameType` types - attempted to construct with \(name)")
         }
         
-        self.name = typeName
+        self.name = NameType(rawValue: name)
         self.description = type.description
         self.specifiedByURL = type.specifiedByURL
     }
