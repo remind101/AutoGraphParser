@@ -29,6 +29,7 @@ let package = Package(
             dependencies: [.product(name: "Parsing", package: "swift-parsing")]),
         .testTarget(
             name: "AutoGraphParserTests",
-            dependencies: ["AutoGraphParser"]),
+            dependencies: ["AutoGraphParser"],
+            resources: [.copy("Resources")]),
     ]
 )
