@@ -13,7 +13,7 @@ Conforming to 2021 [spec](https://spec.graphql.org/October2021/).
 
 CI:
 - [x] Linux Ubuntu
-- [ ] Mac 
+- [x] Mac 
 
 ### Process
 
