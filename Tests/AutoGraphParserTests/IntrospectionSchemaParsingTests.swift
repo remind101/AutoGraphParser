@@ -27,13 +27,13 @@ final class IntrospectionSchemaParsingTests: XCTestCase {
             }
 
             let filePath = "/\(sourcePath)"
-            let schemaPath = "\(filePath)/Tests/AutoGraphParserTests/star_wars_schema.json"
+            let schemaPath = "\(filePath)/Tests/AutoGraphParserTests/Resources/star_wars_schema.json"
             self.swapiSchema = try __Schema.loadFrom(jsonSchemaPath: schemaPath)
             
-            let otherSchemaPath = "\(filePath)/Tests/AutoGraphParserTests/star_wars_other_schema.json"
+            let otherSchemaPath = "\(filePath)/Tests/AutoGraphParserTests/Resources/star_wars_other_schema.json"
             self.otherSWAPISchema = try __Schema.loadFrom(jsonSchemaPath: otherSchemaPath)
             
-            let baseTypesSchemaPath = "\(filePath)/Tests/AutoGraphParserTests/base_types_2021_schema.json"
+            let baseTypesSchemaPath = "\(filePath)/Tests/AutoGraphParserTests/Resources/base_types_2021_schema.json"
             self.baseTypesSchema = try __Schema.loadFrom(jsonSchemaPath: baseTypesSchemaPath)
         }
     }
