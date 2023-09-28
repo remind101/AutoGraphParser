@@ -21,8 +21,7 @@ jobs:
       - checkout
       - run: sudo apt-get update
       # See: https://www.swift.org/install/linux/#installation-via-tarball
-      # TODO: `libc6-dev` is not included because it hangs circle ci. Build passes though without.
-      - run: sudo apt-get install -y binutils git gnupg2 libcurl4-openssl-dev libedit2 libgcc-9-dev libpython3.8 libsqlite3-0 libstdc++-9-dev libxml2-dev libz3-dev pkg-config tzdata unzip zlib1g-dev
+      - run: DEBIAN_FRONTEND=noninteractive sudo apt-get install -y binutils git gnupg2 libc6-dev libcurl4-openssl-dev libedit2 libgcc-9-dev libpython3.8 libsqlite3-0 libstdc++-9-dev libxml2-dev libz3-dev pkg-config tzdata unzip zlib1g-dev
       - run:
           wget https://download.swift.org/swift-5.9-release/ubuntu2204/swift-5.9-RELEASE/swift-5.9-RELEASE-ubuntu22.04.tar.gz &&
           wget https://download.swift.org/swift-5.9-release/ubuntu2204/swift-5.9-RELEASE/swift-5.9-RELEASE-ubuntu22.04.tar.gz.sig &&
